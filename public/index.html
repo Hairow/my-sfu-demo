@@ -76,7 +76,11 @@
         }
 
         video {
+            /* 固定宽高比，布局稳定；黑屏/未出流时不塌陷 */
             width: 100%;
+            aspect-ratio: 16 / 9;
+            object-fit: cover;
+            background: #000;
         }
 
         video.muted {
@@ -85,14 +89,15 @@
 
         .grid {
             display: grid;
-            gap: 1rem;
-            max-width: 1200px;
+            gap: clamp(0.75rem, 2vw, 1rem);
+            max-width: 1280px;
             margin: 0 auto;
-            padding: 1rem;
+            padding: clamp(0.75rem, 2vw, 1.5rem);
         }
 
         .controls {
             display: flex;
+            flex-wrap: wrap;
             gap: 0.75rem;
         }
 
@@ -113,9 +118,10 @@
         }
 
         #videos {
+            /* min(100%, 280px) 防止小屏横向溢出（280px 大于 320px 屏） */
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 1rem;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+            gap: clamp(0.75rem, 2vw, 1rem);
         }
 
         .video-card {
@@ -143,6 +149,62 @@
         /* 必须显式处理 hidden，否则上面的 display: flex 会覆盖 hidden 属性的默认 display:none */
         .video-hint[hidden] {
             display: none;
+        }
+
+        /* ---- 移动端适配 ---- */
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 1.15rem;
+            }
+
+            /* 按钮各占一半，方便触屏 */
+            .controls button {
+                flex: 1;
+                min-width: 0;
+                padding: 0.75rem 0.5rem;
+                font-size: 1rem;
+            }
+
+            .video-card {
+                padding: 0.25rem;
+            }
+
+            .video-card h2 {
+                font-size: 0.8rem;
+                margin-bottom: 0.25rem;
+            }
+        }
+
+        /* ---- 深色模式 ---- */
+        @media (prefers-color-scheme: dark) {
+            html {
+                background: #111;
+                color: #eee;
+            }
+
+            h2 {
+                color: #aaa;
+            }
+
+            h1 #room-label {
+                color: #888;
+            }
+
+            .controls button {
+                background: #2a2a2a;
+                border-color: #555;
+                color: #eee;
+            }
+
+            .controls button.off {
+                background: #b00;
+                border-color: #b00;
+            }
+
+            .video-card {
+                background: #1c1c1c;
+                border-color: #333;
+            }
         }
     </style>
 </body>
