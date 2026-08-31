@@ -12,28 +12,24 @@
 
 <body>
     <div class="grid">
-        <h1>Realtime Echo Demo</h1>
+        <h1>Realtime Video Conference <span id="room-label"></span></h1>
         <div class="controls">
             <button id="video-toggle" data-on="视频：开" data-off="视频：关">视频：开</button>
             <button id="audio-toggle" data-on="音频：开" data-off="音频：关">音频：开</button>
         </div>
-        <div>
-            <h2>Local stream</h2>
-            <div class="video-wrap">
-                <video id="local-video" autoplay muted></video>
-                <div id="video-off-hint" class="video-hint" hidden>摄像头已关闭</div>
+        <div id="videos">
+            <div class="video-card">
+                <h2>我</h2>
+                <div class="video-wrap">
+                    <video id="local-video" autoplay muted playsinline></video>
+                    <div id="video-off-hint" class="video-hint" hidden>摄像头已关闭</div>
+                </div>
             </div>
-        </div>
-        <div>
-            <h2>Remote echo stream</h2>
-            <video id="remote-video" autoplay></video>
         </div>
     </div>
 
     <script type="module" src="./app.js"></script>
     <style>
-        /* Styles are safe to ignore, just here for demo */
-
         html {
             color-scheme: light dark;
             font-family:
@@ -65,12 +61,18 @@
 
         h1 {
             font-size: 1.5rem;
-            grid-column: 1 / -1;
+        }
+
+        h1 #room-label {
+            font-size: 1rem;
+            color: #777;
+            margin-left: 0.5rem;
         }
 
         h2 {
-            font-size: 1rem;
+            font-size: 0.9rem;
             margin-bottom: 0.5rem;
+            color: #555;
         }
 
         video {
@@ -81,11 +83,17 @@
             filter: grayscale(1) brightness(0.6);
         }
 
+        .grid {
+            display: grid;
+            gap: 1rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
         .controls {
-            grid-column: 1 / -1;
             display: flex;
             gap: 0.75rem;
-            margin-bottom: 0.5rem;
         }
 
         .controls button {
@@ -102,6 +110,20 @@
             background: #d33;
             border-color: #d33;
             color: #fff;
+        }
+
+        #videos {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+        }
+
+        .video-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 0.5rem;
+            background: #fafafa;
+            overflow: hidden;
         }
 
         .video-wrap {
@@ -121,18 +143,6 @@
         /* 必须显式处理 hidden，否则上面的 display: flex 会覆盖 hidden 属性的默认 display:none */
         .video-hint[hidden] {
             display: none;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-            gap: 1rem;
-        }
-
-        @media (max-width: 500px) {
-            .grid {
-                grid-template-columns: minmax(0, 1fr);
-            }
         }
     </style>
 </body>

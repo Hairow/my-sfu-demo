@@ -8,6 +8,21 @@
         "not_found_handling": "single-page-application",
         "html_handling": "none"
     },
+    // 多人会议房间：每个房间一个 Durable Object 实例，WebSocket 广播成员加入/离开
+    "durable_objects": {
+        "bindings": [
+            {
+                "name": "ROOMS",
+                "class_name": "Room"
+            }
+        ]
+    },
+    "migrations": [
+        {
+            "tag": "v1",
+            "new_sqlite_classes": ["Room"]
+        }
+    ],
     // 公开静态变量（App Id 是公开标识，可以放这里）
     // 注意：App Secret 绝不能放这里，请用 wrangler secret put REALTIME_APP_SECRET 配置
     // 配置一个api访问的密码，        请用 wrangler secret put REALTIME_ACCESS_TOKEN 配置

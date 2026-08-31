@@ -1,11 +1,14 @@
-// Realtime Echo Demo 前端逻辑（原内联在 index.html 中的 <script type="module">）
-// This is a class the defines the Realtime API interactions.
-// It's not an SDK but a example of how Realtime API can be used.
+// Realtime 多人视频会议前端
+//
+// 架构：
+//   1. 每个浏览器创建自己的 Realtime session，以 sendonly 发布本地音视频
+//   2. 通过 WebSocket 连接 Worker 的 Durable Object（房间），交换各自的
+//      (sessionId, trackNames)
+//   3. 拿到房间内其他成员的 (sessionId, trackNames) 后逐个订阅
+//      （newTracks location:'remote'），SFU 只转发被订阅的流
+//   4. 成员加入/离开由房间广播通知，前端动态订阅/清理
 
-// App Id / App Secret 不再放在浏览器里，由 Worker（src/index.js）代理
-// 并通过环境变量保管，浏览器只请求同源路径 /realtime/*。
-
-// 简单访问控制：页面公开可看，但调用 /realtime/* 需要访问码。
+// ---- 访问控制（可选）----
 // 获取顺序：URL 参数 ?token=xxx > sessionStorage 缓存 > 弹窗输入。
 // Worker 未配置 REALTIME_ACCESS_TOKEN 时不校验，此段不影响使用。
 const accessToken =
@@ -16,6 +19,10 @@ const accessToken =
 if (accessToken) {
     sessionStorage.setItem('accessToken', accessToken);
 }
+
+// ---- 房间 ----
+// 房间固定在服务端写死（Worker 中 ROOM_NAME = 'hello'），客户端无法指定。
+document.getElementById('room-label').textContent = '房间：hello';
 
 class RealtimeApp {
     // basePath 指向本 Worker 的代理路径，鉴权由服务端完成
@@ -109,14 +116,11 @@ self.pc = new RTCPeerConnection({
     bundlePolicy: 'max-bundle'
 });
 
-// In order to successfully establish a peer connection, we need at least one track to publish.
-// In this case, we create two: video & audio
+// 采集本地音视频
 const localStream = await navigator.mediaDevices.getUserMedia({
     video: true,
     audio: true
 });
-
-// Get the local video element in the HTML and set the source to show local stream
 const localVideoElement = document.getElementById('local-video');
 localVideoElement.srcObject = localStream;
 
@@ -147,17 +151,16 @@ audioToggle.addEventListener('click', () => {
     updateToggle(audioToggle, on);
 });
 
-// Add sendonly trancievers to the PeerConnection
+// 以 sendonly 发布本地音视频
 self.transceivers = localStream.getTracks().map(track =>
     self.pc.addTransceiver(track, {
         direction: 'sendonly'
     })
 );
 
-// Create a instance of RealtimeApp (defined below). Please note that this is not an official SDK but just a demo showing the HTML API.
 self.app = new RealtimeApp();
 
-// Send the first offer and create a session. The returned sessionId is required to retrieve any track published by this peer
+// 创建 session，拿到本浏览器的 sessionId
 await self.pc.setLocalDescription(await self.pc.createOffer());
 const newSessionResult = await self.app.newSession(
     self.pc.localDescription.sdp
@@ -166,7 +169,7 @@ await self.pc.setRemoteDescription(
     new RTCSessionDescription(newSessionResult.sessionDescription)
 );
 
-// Make the peer connection was established
+// 等待 ICE 连接建立
 await new Promise((resolve, reject) => {
     self.pc.addEventListener('iceconnectionstatechange', ev => {
         if (ev.target.iceConnectionState === 'connected') {
@@ -176,74 +179,147 @@ await new Promise((resolve, reject) => {
     });
 });
 
-// We associate a trackName to a transceiver identified by a mid (media ID). This way the track
-// is remotely reachable by the tuple (sessionId, trackName)
-let trackObjects = self.transceivers.map(transceiver => {
+// 发布本地 tracks：trackName 是远端订阅本浏览器的标识
+const localTrackObjects = self.transceivers.map(transceiver => {
     return {
         location: 'local',
         mid: transceiver.mid,
         trackName: transceiver.sender.track.id
     };
 });
-
-// Get local description, create a new track, set remote description with the response
 await self.pc.setLocalDescription(await self.pc.createOffer());
 const newLocalTracksResult = await self.app.newTracks(
-    trackObjects,
+    localTrackObjects,
     self.pc.localDescription.sdp
 );
 await self.pc.setRemoteDescription(
     new RTCSessionDescription(newLocalTracksResult.sessionDescription)
 );
+const myTrackNames = localTrackObjects.map(t => t.trackName);
 
-// At this point in code, we are successfully sending local stream to Cloudflare Realtime.
-// Now, we will pull the same stream from Cloudflare Realtime.
+// ---- 房间信令 ----
+const members = new Map(); // sessionId -> { sessionId, trackNames, stream, videoEl, received }
+const remoteGrid = document.getElementById('videos');
+let ws = null;
+// 订阅串行队列：多个订阅并发会互相打断 SDP 协商，必须排队逐个执行
+let renegotiationQueue = Promise.resolve();
 
-// Update trackObjects to reference the tracks as "remote"
-trackObjects = trackObjects.map(trackObject => {
-    return {
-        location: 'remote',
-        sessionId: self.app.sessionId,
-        trackName: trackObject.trackName
-    };
-});
-
-// Prepare to receive the tracks before asking for them
-const remoteTracksPromise = new Promise(resolve => {
-    let tracks = [];
-    self.pc.ontrack = event => {
-        tracks.push(event.track);
-        console.debug(`Got track mid=${event.track.mid}`);
-        if (tracks.length >= 2) {
-            // remote video & audio are ready
-            resolve(tracks);
-        }
-    };
-});
-
-// Realtime API request to ask for the tracks
-const newRemoteTracksResult = await self.app.newTracks(trackObjects);
-if (newRemoteTracksResult.requiresImmediateRenegotiation) {
-    switch (newRemoteTracksResult.sessionDescription.type) {
-        case 'offer':
-            // We let Cloudflare know we're ready to receive the tracks
-            await self.pc.setRemoteDescription(
-                new RTCSessionDescription(
-                    newRemoteTracksResult.sessionDescription
-                )
-            );
-            await self.pc.setLocalDescription(await self.pc.createAnswer());
-            await self.app.sendAnswerSDP(self.pc.localDescription.sdp);
+// 接收远端 track：按订阅顺序放入第一个未收满的成员
+self.pc.ontrack = event => {
+    for (const entry of members.values()) {
+        if (entry.received < entry.trackNames.length) {
+            entry.stream.addTrack(event.track);
+            entry.received++;
+            if (entry.received === entry.trackNames.length) {
+                renderMember(entry);
+            }
             break;
-        case 'answer':
-            throw new Error('An offer SDP was expected');
+        }
     }
+};
+
+function wsUrl() {
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const tokenParam = accessToken
+        ? `?token=${encodeURIComponent(accessToken)}`
+        : '';
+    return `${proto}://${location.host}/room/ws${tokenParam}`;
 }
 
-// Once started receiving the tracks (video & audio) send the data to the video tag
-const remoteTracks = await remoteTracksPromise;
-const remoteVideoElement = document.getElementById('remote-video');
-const remoteStream = new MediaStream();
-remoteStream.addTrack(remoteTracks[0]);
-remoteStream.addTrack(remoteTracks[1]);
-remoteVideoElement.srcObject = remoteStream;
+function connectWS() {
+    ws = new WebSocket(wsUrl());
+    ws.addEventListener('open', () => {
+        ws.send(
+            JSON.stringify({
+                type: 'join',
+                sessionId: self.app.sessionId,
+                trackNames: myTrackNames
+            })
+        );
+    });
+    ws.addEventListener('message', async event => {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'members') {
+            for (const m of msg.members) {
+                await subscribeMember(m);
+            }
+        } else if (msg.type === 'member-joined') {
+            await subscribeMember(msg.member);
+        } else if (msg.type === 'member-left') {
+            removeMember(msg.sessionId);
+        }
+    });
+    ws.addEventListener('close', () => {
+        // 断开时清理远端并自动重连（重连后重新 join，服务器会补发成员列表）
+        for (const sid of [...members.keys()]) {
+            removeMember(sid);
+        }
+        setTimeout(connectWS, 2000);
+    });
+}
+
+async function subscribeMember(member) {
+    if (members.has(member.sessionId)) return;
+    const entry = {
+        sessionId: member.sessionId,
+        trackNames: member.trackNames,
+        stream: new MediaStream(),
+        videoEl: null,
+        received: 0
+    };
+    members.set(member.sessionId, entry);
+
+    const remoteTrackObjects = member.trackNames.map(name => ({
+        location: 'remote',
+        sessionId: member.sessionId,
+        trackName: name
+    }));
+
+    renegotiationQueue = renegotiationQueue
+        .then(async () => {
+            const result = await self.app.newTracks(remoteTrackObjects);
+            if (
+                result.requiresImmediateRenegotiation &&
+                result.sessionDescription.type === 'offer'
+            ) {
+                await self.pc.setRemoteDescription(
+                    new RTCSessionDescription(result.sessionDescription)
+                );
+                await self.pc.setLocalDescription(await self.pc.createAnswer());
+                await self.app.sendAnswerSDP(self.pc.localDescription.sdp);
+            }
+        })
+        .catch(err => {
+            console.error('订阅失败：', err);
+            removeMember(member.sessionId);
+        });
+    await renegotiationQueue;
+}
+
+function renderMember(entry) {
+    const card = document.createElement('div');
+    card.className = 'video-card';
+    const name = document.createElement('h2');
+    name.textContent = `成员 ${entry.sessionId.slice(0, 8)}`;
+    const video = document.createElement('video');
+    video.autoplay = true;
+    video.playsInline = true;
+    video.srcObject = entry.stream;
+    entry.videoEl = video;
+    card.append(name, video);
+    remoteGrid.appendChild(card);
+}
+
+function removeMember(sessionId) {
+    const entry = members.get(sessionId);
+    if (!entry) return;
+    if (entry.videoEl) {
+        entry.videoEl.closest('.video-card')?.remove();
+    }
+    entry.stream.getTracks().forEach(t => t.stop());
+    members.delete(sessionId);
+}
+
+window.addEventListener('beforeunload', () => ws?.close());
+
+connectWS();
