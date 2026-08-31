@@ -3,10 +3,11 @@
     "main": "src/index.js",
     "compatibility_date": "2026-08-01",
     // Workers Static Assets：托管 public 目录下的前端静态资源
+    // 不显式配置 not_found_handling（默认 "none"）：
+    // 静态 miss 时请求会落入 Worker fetch，由 index.js 中 ASSETS.fetch 确认 404 后
+    // 继续处理 /room/ws 与 /realtime/*
     "assets": {
-        "directory": "./public",
-        "not_found_handling": "single-page-application",
-        "html_handling": "none"
+        "directory": "./public"
     },
     // 多人会议房间：每个房间一个 Durable Object 实例，WebSocket 广播成员加入/离开
     "durable_objects": {
@@ -20,7 +21,9 @@
     "migrations": [
         {
             "tag": "v1",
-            "new_sqlite_classes": ["Room"]
+            "new_sqlite_classes": [
+                "Room"
+            ]
         }
     ],
     // 公开静态变量（App Id 是公开标识，可以放这里）

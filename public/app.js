@@ -25,8 +25,8 @@ if (accessToken) {
 document.getElementById('room-label').textContent = '房间：hello';
 
 class RealtimeApp {
-    // basePath 指向本 Worker 的代理路径，鉴权由服务端完成
-    constructor(basePath = '/realtime') {
+    // basePath 指向本 Worker 的代理路径（/api 前缀），鉴权由服务端完成
+    constructor(basePath = '/api/realtime') {
         this.prefixPath = basePath;
     }
 
@@ -223,7 +223,7 @@ function wsUrl() {
     const tokenParam = accessToken
         ? `?token=${encodeURIComponent(accessToken)}`
         : '';
-    return `${proto}://${location.host}/room/ws${tokenParam}`;
+    return `${proto}://${location.host}/api/room/ws${tokenParam}`;
 }
 
 function connectWS() {
