@@ -117,8 +117,13 @@ self.pc = new RTCPeerConnection({
 });
 
 // 采集本地音视频
+// 采集约束：请求 720p/30fps（ideal 是软约束，摄像头尽量满足；不设时会取原生最高分辨率）
 const localStream = await navigator.mediaDevices.getUserMedia({
-    video: true,
+    video: {
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        frameRate: { ideal: 30, max: 30 }
+    },
     audio: true
 });
 const localVideoElement = document.getElementById('local-video');
@@ -152,11 +157,16 @@ audioToggle.addEventListener('click', () => {
 });
 
 // 以 sendonly 发布本地音视频
-self.transceivers = localStream.getTracks().map(track =>
-    self.pc.addTransceiver(track, {
-        direction: 'sendonly'
-    })
-);
+// 视频 track 限制编码上限：1 Mbps / 30fps，避免默认 4K 高码率浪费带宽
+self.transceivers = localStream.getTracks().map(track => {
+    const isVideo = track.kind === 'video';
+    return self.pc.addTransceiver(track, {
+        direction: 'sendonly',
+        ...(isVideo
+            ? { sendEncodings: [{ maxBitrate: 1_000_000, maxFramerate: 30 }] }
+            : {})
+    });
+});
 
 self.app = new RealtimeApp();
 
