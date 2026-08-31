@@ -113,7 +113,7 @@ self.pc = new RTCPeerConnection({
             urls: 'stun:stun.cloudflare.com:3478'
         }
     ],
-    bundlePolicy: 'max-bundle'
+    bundlePolicy: 'max-bundle'// 一路连接 + 多路流， 把所有 m-line 打包进同一条 ICE/UDP 传输
 });
 
 // 采集本地音视频
