@@ -118,9 +118,10 @@
         }
 
         #videos {
-            /* min(100%, 280px) 防止小屏横向溢出（280px 大于 320px 屏） */
+            /* auto-fill 保留空轨道：单人时卡片保持约 280px 不撑满全屏，
+               人多时自动填满；min(100%, 280px) 防止小屏横向溢出 */
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(min(100%, 400px), 1fr));
             gap: clamp(0.75rem, 2vw, 1rem);
         }
 
