@@ -118,6 +118,11 @@
             background: rgba(0, 0, 0, 0.1);
         }
 
+        /* 必须显式处理 hidden，否则上面的 display: flex 会覆盖 hidden 属性的默认 display:none */
+        .video-hint[hidden] {
+            display: none;
+        }
+
         .grid {
             display: grid;
             grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
