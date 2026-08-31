@@ -1,0 +1,18 @@
+# 依赖
+node_modules/
+
+# 本地开发密钥（模拟远程 secret，绝不能提交）
+.dev.vars
+
+# Wrangler 本地状态
+.wrangler/
+
+# 构建产物
+dist/
+build/
+
+# 日志
+*.log
+
+# macOS
+.DS_Store

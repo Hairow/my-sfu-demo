@@ -1,0 +1,32 @@
+{
+    "name": "my-sfu-demo",
+    "main": "src/index.js",
+    "compatibility_date": "2026-08-01",
+    // Workers Static Assets：托管 public 目录下的前端静态资源
+    "assets": {
+        "directory": "./public",
+        "not_found_handling": "single-page-application",
+        "html_handling": "none"
+    },
+    // 公开静态变量（App Id 是公开标识，可以放这里）
+    // 注意：App Secret 绝不能放这里，请用 wrangler secret put REALTIME_APP_SECRET 配置
+    // 配置一个api访问的密码，        请用 wrangler secret put REALTIME_ACCESS_TOKEN 配置
+    "vars": {
+        "REALTIME_APP_ID": "a29e48395cf0911f40bfc4f08cc9bd9e"
+    },
+    "observability": {
+        "enabled": false,
+        "head_sampling_rate": 1,
+        "logs": {
+            "enabled": true,
+            "head_sampling_rate": 1,
+            "persist": true,
+            "invocation_logs": true
+        },
+        "traces": {
+            "enabled": false,
+            "persist": true,
+            "head_sampling_rate": 1
+        }
+    }
+}

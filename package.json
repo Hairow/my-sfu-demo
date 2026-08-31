@@ -1,0 +1,15 @@
+{
+  "name": "my-sfu-demo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Cloudflare Worker 项目：前端静态资源（public）+ 后端 API（Worker）一体化",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  },
+  "dependencies": {}
+}
