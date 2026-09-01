@@ -9,11 +9,11 @@
 export class Room {
   constructor(ctx, env) {
     this.ctx = ctx;
-    this.members = new Map(); // server WebSocket -> { sessionId, trackNames } | null
+    this.sessions = new Map(); // server WebSocket -> { sessionId, trackNames } | null
 
     // DO 被唤醒（从休眠/重启恢复）时，重建 连接 -> 成员 的映射
     for (const socket of ctx.getWebSockets()) {
-      this.members.set(socket, socket.deserializeAttachment() ?? null);
+      this.sessions.set(socket, socket.deserializeAttachment() ?? null);
     }
   }
 
@@ -23,7 +23,7 @@ export class Room {
     // Hibernation 模式：连接交给平台托管（隐含 accept）。
     // 之后不能再 addEventListener，事件改由类方法 webSocketMessage / webSocketClose 接收。
     this.ctx.acceptWebSocket(server);
-    this.members.set(server, null);
+    this.sessions.set(server, null);
     return new Response(null, { status: 101, webSocket: client });
   }
 
@@ -38,19 +38,19 @@ export class Room {
     if (msg.type !== 'join' || !msg.sessionId) return;
 
     const member = { sessionId: msg.sessionId, trackNames: msg.trackNames || [] };
-    this.members.set(server, member);
+    this.sessions.set(server, member);
     // 成员数据附加到连接上，DO 休眠/重启时由平台持久化
     server.serializeAttachment(member);
 
     // 广播新成员给房间内其他人
-    for (const [conn, m] of this.members) {
+    for (const [conn, m] of this.sessions) {
       if (conn !== server && m) {
         conn.send(JSON.stringify({ type: 'member-joined', member }));
       }
     }
     // 给新成员返回当前成员列表（不含自己）。
     // DO 重启恢复后，这里会包含由 getWebSockets() 恢复的老成员。
-    const others = [...this.members.values()].filter(
+    const others = [...this.sessions.values()].filter(
       (m) => m && m.sessionId !== member.sessionId
     );
     server.send(JSON.stringify({ type: 'members', members: others }));
@@ -58,11 +58,11 @@ export class Room {
 
   // 连接关闭事件
   async webSocketClose(server, code, reason, wasClean) {
-    const member = this.members.get(server);
-    this.members.delete(server);
+    const member = this.sessions.get(server);
+    this.sessions.delete(server);
     if (member) {
       // 广播成员离开
-      for (const [conn, m] of this.members) {
+      for (const [conn, m] of this.sessions) {
         if (m) {
           conn.send(JSON.stringify({ type: 'member-left', sessionId: member.sessionId }));
         }

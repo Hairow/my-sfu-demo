@@ -208,7 +208,7 @@ await self.pc.setRemoteDescription(
 const myTrackNames = localTrackObjects.map(t => t.trackName);
 
 // ---- 房间信令 ----
-const members = new Map(); // sessionId -> { sessionId, trackNames, stream, videoEl, received }
+const sessions = new Map(); // sessionId -> { sessionId, trackNames, stream, videoEl, received }
 const remoteGrid = document.getElementById('videos');
 let ws = null;
 // 订阅串行队列：多个订阅并发会互相打断 SDP 协商，必须排队逐个执行
@@ -216,7 +216,7 @@ let renegotiationQueue = Promise.resolve();
 
 // 接收远端 track：按订阅顺序放入第一个未收满的成员
 self.pc.ontrack = event => {
-    for (const entry of members.values()) {
+    for (const entry of sessions.values()) {
         if (entry.received < entry.trackNames.length) {
             entry.stream.addTrack(event.track);
             entry.received++;
@@ -261,7 +261,7 @@ function connectWS() {
     });
     ws.addEventListener('close', () => {
         // 断开时清理远端并自动重连（重连后重新 join，服务器会补发成员列表）
-        for (const sid of [...members.keys()]) {
+        for (const sid of [...sessions.keys()]) {
             removeMember(sid);
         }
         setTimeout(connectWS, 2000);
@@ -269,7 +269,7 @@ function connectWS() {
 }
 
 async function subscribeMember(member) {
-    if (members.has(member.sessionId)) return;
+    if (sessions.has(member.sessionId)) return;
     const entry = {
         sessionId: member.sessionId,
         trackNames: member.trackNames,
@@ -277,7 +277,7 @@ async function subscribeMember(member) {
         videoEl: null,
         received: 0
     };
-    members.set(member.sessionId, entry);
+    sessions.set(member.sessionId, entry);
 
     const remoteTrackObjects = member.trackNames.map(name => ({
         location: 'remote',
@@ -321,13 +321,13 @@ function renderMember(entry) {
 }
 
 function removeMember(sessionId) {
-    const entry = members.get(sessionId);
+    const entry = sessions.get(sessionId);
     if (!entry) return;
     if (entry.videoEl) {
         entry.videoEl.closest('.video-card')?.remove();
     }
     entry.stream.getTracks().forEach(t => t.stop());
-    members.delete(sessionId);
+    sessions.delete(sessionId);
 }
 
 window.addEventListener('beforeunload', () => ws?.close());
