@@ -12,9 +12,9 @@ export class Room {
     this.sessions = new Map(); // server WebSocket -> { sessionId, trackNames } | null
 
     // DO 被唤醒（从休眠/重启恢复）时，重建 连接 -> 成员 的映射
-    for (const socket of ctx.getWebSockets()) {
-      this.sessions.set(socket, socket.deserializeAttachment() ?? null);
-    }
+    this.ctx.getWebSockets().forEach((webSocket) => {
+      this.sessions.set(webSocket, webSocket.deserializeAttachment() ?? null);
+    });
   }
 
   async fetch(request) {
@@ -28,23 +28,27 @@ export class Room {
   }
 
   // 消息事件（Hibernation 模式必须定义为类方法）
-  async webSocketMessage(server, message) {
+  async webSocketMessage(webSocket, message) {
     let msg;
     try {
       msg = JSON.parse(message);
-    } catch {
+    } catch (e) {
+      webSocket.send(JSON.stringify({ error: "Invalid JSON." }));
       return;
     }
-    if (msg.type !== 'join' || !msg.sessionId) return;
+    if (msg.type !== 'join' || !msg.sessionId) {
+      webSocket.send(JSON.stringify({ error: "Invalid msg type." }));
+      return;
+    }
 
     const member = { sessionId: msg.sessionId, trackNames: msg.trackNames || [] };
-    this.sessions.set(server, member);
+    this.sessions.set(webSocket, member);
     // 成员数据附加到连接上，DO 休眠/重启时由平台持久化
-    server.serializeAttachment(member);
+    webSocket.serializeAttachment(member);
 
     // 广播新成员给房间内其他人
     for (const [conn, m] of this.sessions) {
-      if (conn !== server && m) {
+      if (conn !== webSocket && m) {
         conn.send(JSON.stringify({ type: 'member-joined', member }));
       }
     }
@@ -53,13 +57,13 @@ export class Room {
     const others = [...this.sessions.values()].filter(
       (m) => m && m.sessionId !== member.sessionId
     );
-    server.send(JSON.stringify({ type: 'members', members: others }));
+    webSocket.send(JSON.stringify({ type: 'members', members: others }));
   }
 
   // 连接关闭事件
-  async webSocketClose(server, code, reason, wasClean) {
-    const member = this.sessions.get(server);
-    this.sessions.delete(server);
+  async webSocketClose(webSocket, code, reason, wasClean) {
+    const member = this.sessions.get(webSocket);
+    this.sessions.delete(webSocket);
     if (member) {
       // 广播成员离开
       for (const [conn, m] of this.sessions) {
