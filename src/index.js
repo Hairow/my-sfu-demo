@@ -30,9 +30,9 @@ export default {
     // WebSocket 信令必须最先拦截：静态托管不认识 upgrade 请求，
     // 不能把 WebSocket 握手交给 ASSETS 处理
     if (url.pathname === '/api/room/ws') {
-      // 访问控制（可选），token 走查询参数或请求头
+      // 访问控制（可选），WebSocket 无法自定义 header，token 只能走查询参数
       if (env.REALTIME_ACCESS_TOKEN) {
-        const token = url.searchParams.get('token') || request.headers.get('x-access-token');
+        const token = url.searchParams.get('token');
         if (token !== env.REALTIME_ACCESS_TOKEN) {
           return Response.json({ error: 'unauthorized' }, { status: 401 });
         }
