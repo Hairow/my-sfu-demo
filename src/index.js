@@ -38,11 +38,16 @@ export default {
         }
       }
       const id = env.ROOMS.idFromName(ROOM_NAME);
+      /** Room */
       const stub = env.ROOMS.get(id);
       return stub.fetch(request);
     }
 
-    // 静态资源不存在 → 走 Realtime API 代理：/api/realtime/<path> -> /v1/apps/<APP_ID>/<path>
+    // 静态资源不存在 → 走 Realtime API 代理：
+    //   /api/realtime/<path> -> /v1/apps/<APP_ID>/<path>
+    //   /api/realtime/sessions/new                       进房时创建 session，传初始 offer
+    //   /api/realtime/sessions/{sessionId}/tracks/new    ① 发布本地 tracks（带 offer），把本地音视频告诉 SFU。② 订阅远端成员（不带 offer），SFU 返回带 offer 的响应
+    //   /api/realtime/sessions/{sessionId}/renegotiate   订阅后应答 SFU 的 offer（回 answer SDP）
     if (url.pathname.startsWith('/api/realtime/')) {
       // 简单访问控制：页面本身公开，但 API 需要访问码（可选）
       if (env.REALTIME_ACCESS_TOKEN) {
