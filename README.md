@@ -24,7 +24,7 @@
 ```
 ├── src/
 │   ├── index.js        # Worker 入口：/api/room/ws 信令、/api/realtime/* 代理、静态资源
-│   └── room.js         # Room Durable Object：WebSocket 信令与成员管理
+│   └── room.js         # Room Durable Object：WebSocket 信令与成员管理（Hibernation 模式）
 ├── public/
 │   ├── index.html      # 页面结构 + 响应式样式
 │   └── app.js          # 前端全部逻辑（WebRTC 发布/订阅、信令、音视频开关）
@@ -119,7 +119,6 @@ self.pc.ontrack = event => {
 
 ## 已知限制
 
-- Durable Object 重启会丢成员列表（浏览器断线自动重连补齐）
 - 无昵称 / 音视频开关状态角标
 - 无人数限制
 - 未实现用户选择性订阅（取消订阅需真正 renegotiation）
