@@ -9,10 +9,9 @@
 //   4. 成员加入/离开由房间广播通知，前端动态订阅/清理
 
 // ---- 访问控制（可选）----
-// 获取顺序：URL 参数 ?token=xxx > sessionStorage 缓存 > 弹窗输入。
+// 获取顺序：URL 参数 sessionStorage 缓存 > 弹窗输入。
 // Worker 未配置 REALTIME_ACCESS_TOKEN 时不校验，此段不影响使用。
 const accessToken =
-    new URLSearchParams(location.search).get('token') ||
     sessionStorage.getItem('accessToken') ||
     prompt('请输入访问码（没有访问码可留空）') ||
     '';
