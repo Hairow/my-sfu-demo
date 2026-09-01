@@ -70,9 +70,9 @@ export default {
       }
 
       const response = await fetch(targetUrl, {
-        method: request.method,
-        headers,
-        body: ['GET', 'HEAD'].includes(request.method) ? undefined : request.body
+        method: request.method,//透传 method
+        headers,  //header 仅透传必要的
+        body: request.body//透传 body
       });
 
       return new Response(response.body, {
