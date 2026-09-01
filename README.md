@@ -3,7 +3,7 @@
 基于 Cloudflare Workers + Cloudflare Realtime（SFU）的固定房间多人视频会议 demo。
 
 - 固定房间：房间名 `hello` 在 Worker 中写死，客户端无法指定
-- 访问控制：页面公开，API 可通过 `REALTIME_ACCESS_TOKEN` 校验访问码（可选）
+- 访问控制：页面公开，API 可通过 `REALTIME_ACCESS_TOKEN` 校验访问码（可选），token 不经过 URL 入口
 - 视频质量：采集 720p/30fps，发送编码上限 1 Mbps / 30fps
 - 响应式页面：支持深色模式与移动端适配
 
@@ -48,6 +48,26 @@ npx wrangler secret put REALTIME_ACCESS_TOKEN   # 可选
 ```
 
 本地开发时把 secret 写入 `.dev.vars`（已 gitignore）。
+
+## 访问码（可选）
+
+配置了 `REALTIME_ACCESS_TOKEN` 后，所有 API 请求（Realtime 代理 + WebSocket 信令）都需要访问码。
+
+**前端获取顺序**（`public/app.js`）：
+
+1. `sessionStorage` 缓存（同标签页内有效）
+2. 都没有则 `prompt()` 弹窗输入
+
+> 不支持 `?token=` URL 参数入口：访问码不会出现在 URL 中，避免访问日志 / 浏览器历史 / 分享链接泄露。
+
+**传递方式**（服务端接收）：
+
+| 请求类型 | 传递位置 |
+| --- | --- |
+| Realtime API（`/api/realtime/*`） | `x-access-token` 请求头 |
+| WebSocket 信令（`/api/room/ws`） | `?token=` 查询参数（WebSocket 无法自定义请求头，不得已） |
+
+**未配置** `REALTIME_ACCESS_TOKEN` 时，服务端跳过校验，访问码输入与否不影响使用。
 
 ## 多路视频流：SFU 如何返回给客户端
 
