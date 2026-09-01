@@ -162,7 +162,7 @@ self.transceivers = localStream.getTracks().map(track => {
     return self.pc.addTransceiver(track, {
         direction: 'sendonly',
         ...(isVideo
-            ? { sendEncodings: [{ maxBitrate: 1_000_000, maxFramerate: 30 }] }
+            ? { sendEncodings: [{ maxBitrate: 1_000_000, maxFramerate: 24 }] }
             : {})
     });
 });

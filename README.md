@@ -4,7 +4,7 @@
 
 - 固定房间：房间名 `hello` 在 Worker 中写死，客户端无法指定
 - 访问控制：页面公开，API 可通过 `REALTIME_ACCESS_TOKEN` 校验访问码（可选），token 不经过 URL 入口
-- 视频质量：采集 720p/30fps 原样编码发送，上限 1 Mbps / 30fps
+- 视频质量：采集 720p/30fps 原样编码发送，上限 1 Mbps / 24fps
 - 响应式页面：支持深色模式与移动端适配
 
 ## 目录结构
@@ -101,7 +101,7 @@ npx wrangler secret put REALTIME_ACCESS_TOKEN   # 可选
 ① 采集       getUserMedia({video: 720p/30fps ideal, audio})
 ② 建连接     new RTCPeerConnection({STUN, bundlePolicy:'max-bundle'})
 ③ 发布       本地 2 条 track → addTransceiver(direction:'sendonly',
-             视频带 sendEncodings: [{maxBitrate:1Mbps, maxFramerate:30}])
+             视频带 sendEncodings: [{maxBitrate:1Mbps, maxFramerate:24}])
 ④ 建会话     createOffer → POST /sessions/new → 拿到 sessionId
 ⑤ 等连接     iceConnectionState === 'connected'
 ⑥ 再协商     createOffer(含本地 track 的 m-line) → POST /tracks/new(local)
