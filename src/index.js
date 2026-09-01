@@ -38,7 +38,7 @@ export default {
         }
       }
       const id = env.ROOMS.idFromName(ROOM_NAME);
-      /** Room */
+      /** @type {import('./room.js').Room} */
       const stub = env.ROOMS.get(id);
       return stub.fetch(request);
     }
