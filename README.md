@@ -201,7 +201,7 @@ WebSocket 消息共 4 种，全部是 JSON：
 
 ### 9. 已知限制（设计取舍）
 
-- 无昵称 / 音视频开关状态角标：识别靠 sessionId 前 8 位
+- 无昵称 / 音视频开关状态角标：识别靠 sessionId
 - 无人数上限与选择性订阅（取消订阅需真正 renegotiation，当前未实现）
 - 对称 NAT 场景无 TURN 兜底
 - token 明文存 sessionStorage（XSS 可读，本页面无第三方输入，风险可接受）

@@ -309,7 +309,7 @@ function renderMember(entry) {
     const card = document.createElement('div');
     card.className = 'video-card';
     const name = document.createElement('h2');
-    name.textContent = `成员 ${entry.sessionId.slice(0, 8)}`;
+    name.textContent = `成员 ${entry.sessionId}`;
     const video = document.createElement('video');
     video.autoplay = true;
     video.playsInline = true;
