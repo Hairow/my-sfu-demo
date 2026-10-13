@@ -30,9 +30,9 @@
 ## 部署
 
 ```bash
-npx wrangler deploy
-npx wrangler secret put REALTIME_APP_SECRET
-npx wrangler secret put REALTIME_ACCESS_TOKEN   # 可选
+pnpm exec wrangler deploy
+pnpm exec wrangler secret put REALTIME_APP_SECRET
+pnpm exec wrangler secret put REALTIME_ACCESS_TOKEN   # 可选
 ```
 
 本地开发时把 secret 写入 `.dev.vars`（已 gitignore）。
